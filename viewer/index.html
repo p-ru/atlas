@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ATLAS · Floor pick retry</title>
+  <style>
+    :root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background: #101719; color: #f5f7f6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1160px; margin: auto; padding: clamp(20px, 4vw, 54px); }
+    h1 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.15; letter-spacing: -.04em; }
+    p { margin: .6rem 0 1.3rem; color: #b6c4c5; }
+    .viewer { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(245px, 1fr); gap: 22px; align-items: start; }
+    video { display: block; width: 100%; aspect-ratio: 4/3; background: #090e10; border-radius: 14px; }
+    .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+    button, select { font: inherit; color: inherit; border: 1px solid #405256; background: #1b292d; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+    button:hover, select:hover { background: #293c41; }
+    button:focus-visible, select:focus-visible, video:focus-visible, summary:focus-visible { outline: 2px solid #8ce6cb; outline-offset: 3px; }
+    #play { background: #8ce6cb; color: #082321; border-color: #8ce6cb; min-width: 72px; font-weight: 700; }
+    #play:hover { background: #b1f1de; }
+    output { font-variant-numeric: tabular-nums; color: #c6d2d2; margin-left: auto; }
+    aside { border: 1px solid #344649; background: #172225; border-radius: 14px; padding: 15px; }
+    h2 { margin: 0 0 8px; font-size: 1rem; }
+    .chapters { display: grid; gap: 7px; }
+    .chapters button { display: flex; align-items: baseline; text-align: left; gap: 12px; width: 100%; }
+    .chapters button[aria-current="true"] { border-color: #8ce6cb; }
+    .chapters span { color: #a5b9be; font-variant-numeric: tabular-nums; min-width: 3.2rem; }
+    aside p { margin: .8rem 0 0; font-size: .9rem; }
+    details { margin-top: 22px; }
+    summary { cursor: pointer; color: #b7e8dc; }
+    details img { display: block; max-width: 100%; margin-top: 10px; border-radius: 12px; }
+    #error { color: #ffd2bf; margin-top: .7rem; }
+    @media (max-width: 760px) { .viewer { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ATLAS floor pick retry</h1>
+    <p>The first closure was intentionally skipped. The gripper nudges the apple 2.29 cm, then the G1 re-aims and lifts it on the second attempt.</p>
+    <div class="viewer">
+      <section aria-label="Simulation recording">
+        <video id="recording" controls playsinline preload="metadata" poster="lift.jpg" aria-label="Continuous recording of both floor-pick attempts">
+          <source src="retry.webm" type="video/webm">
+          <source src="../results/scalebfm_floor_pick_retry_diagnostic.mp4" type="video/mp4">
+          Your browser cannot play this recording. A still of the lift is available below.
+        </video>
+        <div class="transport" aria-label="Playback controls">
+          <button id="play" type="button">Play</button>
+          <button id="back" type="button" aria-label="Step back one frame">−1 frame</button>
+          <button id="next" type="button" aria-label="Step forward one frame">+1 frame</button>
+          <select id="speed" aria-label="Playback speed">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+          </select>
+          <output id="time" aria-label="Playback time">0.00 / 13.52 s</output>
+        </div>
+        <p id="error" role="status" hidden>Playback could not start. Open the lift still below to inspect the grasp.</p>
+      </section>
+      <aside aria-label="Recording chapters">
+        <h2>Jump to a moment</h2>
+        <div class="chapters">
+          <button type="button" data-time="0"><span>0.00 s</span> First attempt</button>
+          <button type="button" data-time="3.46"><span>3.46 s</span> Missed grasp</button>
+          <button type="button" data-time="6.76"><span>6.76 s</span> Retry begins</button>
+          <button type="button" data-time="10.22"><span>10.22 s</span> Gripper closes</button>
+          <button type="button" data-time="10.72"><span>10.72 s</span> Lift begins</button>
+        </div>
+        <p>Simulation time runs continuously between attempts. Use the frame buttons to inspect contact.</p>
+      </aside>
+    </div>
+    <details>
+      <summary>View a still of the lift</summary>
+      <img src="lift.jpg" alt="The G1’s right gripper holding the red apple above the floor during the second attempt">
+    </details>
+  </main>
+  <script>
+    const video = document.querySelector('#recording');
+    const play = document.querySelector('#play');
+    const time = document.querySelector('#time');
+    const error = document.querySelector('#error');
+    const chapters = [...document.querySelectorAll('.chapters button')];
+    function refresh() {
+      const duration = Number.isFinite(video.duration) ? video.duration : 13.52;
+      time.value = `${video.currentTime.toFixed(2)} / ${duration.toFixed(2)} s`;
+      play.textContent = video.paused ? 'Play' : 'Pause';
+      const current = chapters.findLast(button => Number(button.dataset.time) <= video.currentTime + 0.001);
+      for (const button of chapters) {
+        button.setAttribute('aria-current', button === current ? 'true' : 'false');
+      }
+    }
+    function seek(seconds) {
+      if (!Number.isFinite(video.duration)) return;
+      video.pause();
+      video.currentTime = Math.max(0, Math.min(video.duration, seconds));
+      refresh();
+    }
+    play.addEventListener('click', () => {
+      if (video.paused) video.play().catch(() => { error.hidden = false; });
+      else video.pause();
+    });
+    document.querySelector('#back').addEventListener('click', () => seek(video.currentTime - 1 / 25));
+    document.querySelector('#next').addEventListener('click', () => seek(video.currentTime + 1 / 25));
+    document.querySelector('#speed').addEventListener('change', event => {
+      video.playbackRate = Number(event.target.value);
+    });
+    for (const button of chapters) {
+      button.addEventListener('click', () => seek(Number(button.dataset.time)));
+    }
+    for (const event of ['loadedmetadata', 'timeupdate', 'seeked', 'play', 'pause']) {
+      video.addEventListener(event, refresh);
+    }
+    video.addEventListener('error', () => { error.hidden = false; });
+    refresh();
+  </script>
+</body>
+</html>

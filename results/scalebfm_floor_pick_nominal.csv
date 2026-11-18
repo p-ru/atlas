@@ -1,0 +1,2 @@
+seed,attempt,mode,residual_x_m,residual_y_m,hold_median_error_cm,hold_median_xy_error_cm,peak_apple_rise_cm,lift_frames,lifted
+0,1,nominal,0.0,0.0,3.614235987632059,1.5332075100134064,66.41893022728705,119,1

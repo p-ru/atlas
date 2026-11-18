@@ -1,0 +1,2 @@
+case,mode,initial_x_m,initial_y_m,attempts_used,first_attempt_lift,episode_lift,fell,outcome
+right,learned,0.14,-0.275,2,0,1,0,lifted
